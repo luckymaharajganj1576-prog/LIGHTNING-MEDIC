@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#0F172A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lightning Medic">
+    <meta name="description" content="Clinical Home Care, Nursing & Partner Diagnostics in Lucknow. 60-Min Dispatch & Care Shield Plan.">
+    <title id="docPageTitle">Lightning Medic Home Healthcare | Lucknow Home Care &amp; Diagnostics</title>
+
+    <!-- Dynamic PWA Manifest Link -->
+    <link id="pwaManifestLink" rel="manifest" href="">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: {
+                            800: '#1E293B',
+                            900: '#0F172A',
+                            950: '#090E1A',
+                        },
+                        tealmed: {
+                            50: '#F0FDFA',
+                            100: '#CCFBF1',
+                            400: '#2DD4BF',
+                            500: '#14B8A6',
+                            600: '#0D9488',
+                            700: '#0F766E',
+                            800: '#115E59',
+                            900: '#134E4A',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        #lucknowLeafletMap, #trackingLeafletMap {
+            height: 300px;
+            width: 100%;
+            z-index: 10;
+        }
+        body {
+            overflow-x: hidden;
+        }
+        /* Custom Smooth Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #0D9488;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #0D9488;
+        }
+        @media print {
+            body * { visibility: hidden; }
+            #printableMedicalReport, #printableMedicalReport * { visibility: visible; }
+            #printableMedicalReport {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50/70 text-slate-800 font-sans antialiased selection:bg-tealmed-600 selection:text-white overflow-x-hidden">
+
+    <!-- Maintenance Mode Overlay (Controlled via Admin Toggle) -->
+    <div id="maintenanceOverlay" class="hidden fixed inset-0 z-[60] bg-navy-950/95 backdrop-blur-md flex items-center justify-center p-6 text-center text-white">
+        <div class="max-w-md w-full bg-navy-900 border border-slate-700 rounded-3xl p-8 shadow-2xl space-y-5">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-400 flex items-center justify-center mx-auto">
+                <i data-lucide="wrench" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Scheduled System Upgrade</span>
+                <h2 class="font-display text-2xl font-extrabold mt-1">Website Under Maintenance</h2>
+                <p id="maintenanceSubtext" class="text-xs sm:text-sm text-slate-300 mt-2 leading-relaxed">
+                    We are updating our Lucknow clinical care schedules. For urgent home nursing or ambulance assistance, please call our Central Desk directly.
+                </p>
+            </div>
+            <div class="pt-2 flex flex-col gap-2.5">
+                <a id="maintenanceCallBtn" href="tel:+919876543210" class="w-full py-3 px-4 rounded-xl bg-tealmed-600 hover:bg-tealmed-700 text-white font-bold text-xs sm:text-sm transition inline-flex items-center justify-center gap-2">
+                    <i data-lucide="phone-call" class="w-4 h-4"></i>
+                    <span id="maintenancePhoneLabel">Call Central Desk: +91 98765 43210</span>
+                </a>
+                <button onclick="openRoleAuthModal('staffLogin')" class="text-xs text-slate-400 hover:text-white underline pt-2 cursor-pointer">
+                    Admin / Staff Login to Disable Maintenance Mode
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Promo / Offer Announcement Banner (Controlled via Admin Toggle) -->
+    <div id="customPromoBanner" class="hidden bg-amber-500 text-navy-950 border-b border-amber-600/30 transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-2 text-xs font-bold text-center">
+            <i data-lucide="sparkles" class="w-4 h-4 shrink-0"></i>
+            <span id="customPromoBannerText">Special Lucknow Health Camp: Flat 20% Extra Off on Full-Body Home Checkups!</span>
+        </div>
+    </div>
+
+    <!-- PWA Install Banner (Controlled via Admin Toggle) -->
+    <div id="pwaInstallBanner" class="bg-gradient-to-r from-tealmed-800 via-tealmed-700 to-navy-900 text-white border-b border-tealmed-600/40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                    <i data-lucide="smartphone" class="w-4 h-4 text-tealmed-300"></i>
+                </div>
+                <p class="truncate font-medium">
+                    <strong id="pwaBannerBrandName" class="font-bold">Lightning Medic App Ready:</strong> Install on your device for live nurse tracking &amp; instant dispatch.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="triggerPwaInstall()" id="pwaBannerInstallBtn"
+                        class="bg-white hover:bg-tealmed-50 text-navy-900 font-bold px-3 py-1 rounded-lg text-[11px] shadow-sm transition inline-flex items-center gap-1 cursor-pointer">
+                    <i data-lucide="download" class="w-3 h-3 text-tealmed-700"></i>
+                    <span>Install App</span>
+                </button>
+                <button onclick="dismissPwaBanner()" aria-label="Dismiss Banner"
+                        class="text-tealmed-200 hover:text-white p-1 rounded-md cursor-pointer">
+                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lucknow Location Bar -->
+    <div class="bg-navy-900 text-slate-200 border-b border-slate-800 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-10 flex items-center justify-between gap-3 overflow-hidden">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="flex items-center gap-1.5 text-tealmed-500 font-semibold shrink-0">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline text-slate-400">Lucknow:</span>
+                </div>
+
+                <!-- Dynamically Populated from Admin Service Areas -->
+                <select id="lucknowAreaSelect" onchange="onLucknowAreaDropdownChange()" aria-label="Select Lucknow Area"
+                        class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer pr-1 truncate max-w-[130px] sm:max-w-none">
+                </select>
+
+                <span id="topBarSelectedLocation" class="hidden md:inline-block text-slate-400 truncate max-w-[260px] border-l border-slate-700 pl-3">
+                    Gomti Nagar, Lucknow, UP
+                </span>
+
+                <button onclick="detectBrowserGpsLocation()" id="detectGpsBtn"
+                        class="inline-flex items-center gap-1 text-tealmed-400 hover:text-tealmed-300 font-medium transition cursor-pointer shrink-0 ml-1">
+                    <i data-lucide="locate-fixed" class="w-3.5 h-3.5"></i>
+                    <span>GPS</span>
+                </button>
+
+                <span class="text-slate-700 hidden sm:inline">|</span>
+
+                <button onclick="openMapPinModal()"
+                        class="hidden sm:inline-flex items-center gap-1 text-white hover:text-tealmed-300 font-medium transition cursor-pointer shrink-0">
+                    <i data-lucide="map" class="w-3.5 h-3.5 text-tealmed-500"></i>
+                    <span>Pin on Map</span>
+                </button>
+            </div>
+
+            <div class="hidden lg:flex items-center gap-4 text-slate-400 shrink-0">
+                <span id="topBarDispatchBadge" class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                    60-Min Home Dispatch
+                </span>
+                <a id="topBarPhoneLink" href="tel:+919876543210" class="hover:text-white transition font-medium text-slate-300">
+                    +91 98765 43210
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <a href="#" class="flex items-center gap-2.5 shrink-0">
+                <div class="w-9 h-9 rounded-xl bg-navy-900 flex items-center justify-center text-tealmed-400 shadow-sm">
+                    <i data-lucide="zap" class="w-5 h-5 fill-tealmed-500 text-tealmed-500"></i>
+                </div>
+                <div>
+                    <span id="headerBrandName" class="font-display font-extrabold text-base sm:text-lg tracking-tight text-navy-900 block leading-none">
+                        Lightning Medic
+                    </span>
+                    <span id="headerBrandTagline" class="text-[11px] font-medium text-slate-500 block mt-0.5">
+                        Home Healthcare &bull; Lucknow
+                    </span>
+                </div>
+            </a>
+
+            <nav class="hidden lg:flex items-center gap-7 text-sm font-medium text-slate-600">
+                <a href="#services" class="hover:text-navy-900 transition">Services</a>
+                <a href="#hospitals" id="navHospitalsLink" class="hover:text-navy-900 transition">Partner Hospitals</a>
+                <a href="#care-shield" id="navCareShieldLink" class="hover:text-tealmed-700 transition font-semibold text-tealmed-700">
+                    Care Shield ₹3,999
+                </a>
+                <button onclick="handlePatientPortalBtn()" class="hover:text-navy-900 transition cursor-pointer">
+                    Portal
+                </button>
+            </nav>
+
+            <div class="flex items-center gap-1.5 sm:gap-2.5">
+                <button onclick="triggerPwaInstall()" title="Install Mobile App"
+                        class="inline-flex items-center gap-1.5 text-tealmed-800 bg-tealmed-50 hover:bg-tealmed-100 border border-tealmed-200 font-semibold px-2.5 sm:px-3 py-2 rounded-xl text-xs transition cursor-pointer">
+                    <i data-lucide="smartphone" class="w-3.5 h-3.5 text-tealmed-600"></i>
+                    <span class="hidden sm:inline">App</span>
+                </button>
+
+                <button id="headerStaffBtn" onclick="handleStaffPortalBtn()"
+                        class="inline-flex items-center gap-1.5 text-slate-700 hover:text-navy-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-300 font-bold px-2.5 sm:px-3 py-2 rounded-xl text-xs transition cursor-pointer">
+                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-tealmed-600"></i>
+                    <span id="headerStaffBtnLabel" class="hidden sm:inline">Admin Control</span>
+                    <span class="sm:hidden">Admin</span>
+                </button>
+
+                <button id="headerPatientBtn" onclick="handlePatientPortalBtn()"
+                        class="inline-flex items-center gap-1.5 bg-navy-900 hover:bg-navy-800 text-white font-semibold px-3 sm:px-3.5 py-2 rounded-xl text-xs shadow-sm transition cursor-pointer">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5 text-tealmed-400"></i>
+                    <span id="headerPatientBtnLabel">Patient Login</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Patient Portal Dashboard -->
+    <section id="patientDashboardSection" class="hidden bg-slate-900 text-white border-b border-slate-800 py-8 sm:py-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-navy-800/90 border border-slate-700/80 rounded-2xl p-5 sm:p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div class="flex items-start sm:items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-tealmed-600/20 border border-tealmed-500/40 flex items-center justify-center text-xl font-bold text-tealmed-400 shrink-0">
+                        <span id="ptAvatarChar">R</span>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <h2 id="ptFullName" class="font-display text-xl font-bold text-white">Ramesh Verma</h2>
+                            <span id="ptUniqueIdBadge" class="bg-slate-900 text-slate-300 border border-slate-700 text-xs font-mono px-2.5 py-0.5 rounded-lg">
+                                ID: LM-8492
+                            </span>
+                            <span id="ptShieldBadge" class="bg-tealmed-600/20 text-tealmed-300 border border-tealmed-500/40 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                                Care Shield Active
+                            </span>
+                        </div>
+                        <p id="ptSubInfo" class="text-xs text-slate-400 mt-1">
+                            Age: 58 Yrs &bull; Blood Group: O+ &bull; +91 9876543210 &bull; Gomti Nagar, Lucknow
+                        </p>
+                        <div id="ptCreditsStrip" class="flex flex-wrap items-center gap-3 mt-2.5 text-xs">
+                            <span class="text-slate-300">
+                                Checkups Remaining: <strong id="ptRemainingVisits" class="text-white">21 / 24</strong>
+                            </span>
+                            <span class="text-slate-600">&bull;</span>
+                            <span class="text-slate-300">
+                                Doctor Consults: <strong id="ptRemainingConsults" class="text-white">10 / 12</strong>
+                            </span>
+                            <span class="text-slate-600">&bull;</span>
+                            <span class="text-tealmed-400 font-medium inline-flex items-center gap-1">
+                                <i data-lucide="lock" class="w-3 h-3"></i> Staff-Verified Read-Only
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="downloadMedicalHistoryPdf()" class="bg-white hover:bg-slate-100 text-navy-900 font-semibold px-4 py-2.5 rounded-xl text-xs transition inline-flex items-center gap-2 cursor-pointer">
+                        <i data-lucide="file-down" class="w-4 h-4 text-tealmed-600"></i>
+                        <span>Download History (PDF)</span>
+                    </button>
+                    <button onclick="openBookingModal('Priority Home Nursing Visit (Member)', 0)" class="bg-tealmed-600 hover:bg-tealmed-700 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition inline-flex items-center gap-2 cursor-pointer">
+                        <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                        <span>Schedule Nurse</span>
+                    </button>
+                    <button onclick="logoutPatientPortal()" class="bg-slate-800 hover:bg-rose-600/90 text-slate-300 hover:text-white border border-slate-700 font-medium px-3.5 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Live Tracking Card -->
+            <div id="activeTrackingWidgetContainer" class="hidden mb-6 bg-gradient-to-r from-tealmed-900/90 via-navy-900 to-navy-950 border border-tealmed-500/40 rounded-2xl p-5 text-white">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-tealmed-600/30 border border-tealmed-400/50 flex items-center justify-center text-tealmed-300 animate-pulse">
+                            <i data-lucide="navigation" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-tealmed-400">Active Field Dispatch</span>
+                            <h3 id="widgetStaffName" class="font-display font-bold text-base">Nurse Priya Singh (ID: LKO-NSF-402)</h3>
+                        </div>
+                    </div>
+                    <div class="bg-tealmed-600/20 border border-tealmed-400/30 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span id="widgetEtaText" class="font-bold text-tealmed-200">ETA: 18 Mins (~3.4 km)</span>
+                    </div>
+                </div>
+                <div class="rounded-xl overflow-hidden border border-slate-700 mb-3">
+                    <div id="trackingLeafletMap"></div>
+                </div>
+                <div class="flex flex-wrap items-center justify-between text-xs text-slate-300 gap-2">
+                    <span id="widgetDestinationText">Destination: Gomti Nagar, Lucknow</span>
+                    <button onclick="openFullTrackingModal()" class="text-tealmed-400 hover:text-tealmed-300 font-bold inline-flex items-center gap-1 cursor-pointer">
+                        <span>Open Full Screen Tracker</span> <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-navy-800/70 border border-slate-700/70 rounded-2xl p-4">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Blood Pressure</span>
+                    <div class="mt-1.5 flex items-baseline gap-1.5">
+                        <span id="ptLatestBpVal" class="text-2xl font-display font-bold text-white">124/80</span>
+                        <span class="text-xs text-slate-400">mmHg</span>
+                    </div>
+                    <span id="ptLatestBpStatus" class="inline-block mt-2 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Normal BP
+                    </span>
+                </div>
+
+                <div class="bg-navy-800/70 border border-slate-700/70 rounded-2xl p-4">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Pulse &amp; SpO2</span>
+                    <div class="mt-1.5 flex items-baseline gap-1.5">
+                        <span id="ptLatestPulseSpo2" class="text-2xl font-display font-bold text-white">74 / 99%</span>
+                    </div>
+                    <span class="inline-block mt-2 text-[11px] text-slate-400">Nurse Verified</span>
+                </div>
+
+                <div class="bg-navy-800/70 border border-slate-700/70 rounded-2xl p-4">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Blood Sugar</span>
+                    <div class="mt-1.5 flex items-baseline gap-1.5">
+                        <span id="ptLatestSugar" class="text-2xl font-display font-bold text-white">110</span>
+                        <span class="text-xs text-slate-400">mg/dL</span>
+                    </div>
+                    <span class="inline-block mt-2 text-[11px] text-slate-400">Glucometer Reading</span>
+                </div>
+
+                <div class="bg-navy-800/70 border border-slate-700/70 rounded-2xl p-4">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Physical Screening</span>
+                    <div class="mt-1.5 text-sm font-bold text-white">Eye, Teeth, Ear &amp; Nail</div>
+                    <span id="ptLatestSensory" class="inline-block mt-2 text-[11px] text-tealmed-400 font-medium">
+                        All Clear
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-5 bg-navy-800/70 border border-slate-700/70 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="font-display font-bold text-sm text-white">Blood Pressure Trend</h3>
+                            <div class="flex items-center gap-3 text-[11px]">
+                                <span class="flex items-center gap-1 text-rose-300"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Systolic</span>
+                                <span class="flex items-center gap-1 text-sky-300"><span class="w-2 h-2 rounded-full bg-sky-400"></span> Diastolic</span>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-3">Staff-logged vitals across Lucknow home visits</p>
+                    </div>
+                    <div id="ptBpSvgContainer" class="w-full overflow-x-auto bg-navy-950/60 rounded-xl p-3 border border-slate-800"></div>
+                    <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>Target: 120/80 mmHg</span>
+                        <span id="ptRecordCountBadge" class="text-tealmed-400 font-semibold">3 Visits</span>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 bg-white text-slate-800 rounded-2xl overflow-hidden border border-slate-200">
+                    <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-display font-bold text-navy-900 text-sm">Verified Checkup History</h3>
+                            <p class="text-[11px] text-slate-500">Read-Only Vault &bull; Entries updated exclusively by visiting nurses</p>
+                        </div>
+                        <button onclick="downloadMedicalHistoryPdf()" class="text-xs font-semibold text-tealmed-700 hover:text-tealmed-800 inline-flex items-center gap-1 cursor-pointer">
+                            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print / PDF
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto max-h-72">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="sticky top-0 bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wider border-b border-slate-200">
+                                <tr>
+                                    <th class="py-2.5 px-4 font-semibold">Date</th>
+                                    <th class="py-2.5 px-4 font-semibold">BP (mmHg)</th>
+                                    <th class="py-2.5 px-4 font-semibold">Pulse / SpO2</th>
+                                    <th class="py-2.5 px-4 font-semibold">Sugar</th>
+                                    <th class="py-2.5 px-4 font-semibold">Eye, Teeth, Ear &amp; Nail</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ptVitalsTableBody" class="divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================================================
+         NO-CODE MASTER WEBSITE ADMIN & STAFF CONSOLE
+    ========================================================================== -->
+    <section id="staffPortalSection" class="hidden bg-slate-900 text-white border-b border-slate-800 py-8 sm:py-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Console Header -->
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-navy-800 to-navy-900 border border-slate-700 rounded-2xl p-5 mb-6 shadow-lg">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <h2 class="font-display text-lg sm:text-xl font-extrabold text-white">No-Code Master Website Admin Panel</h2>
+                    </div>
+                    <p class="text-xs text-slate-300 mt-1">
+                        Control every toggle, banner, phone number, service, price, hospital, Lucknow area, and nurse without touching a single line of code.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2.5">
+                    <button onclick="exportCmsJsonBackup()" class="bg-slate-800 hover:bg-slate-700 text-tealmed-300 border border-slate-600 font-semibold px-3.5 py-2 rounded-xl text-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Backup Settings</span>
+                    </button>
+                    <button onclick="logoutStaffPortal()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-200 hover:text-white border border-rose-500/40 font-semibold px-4 py-2 rounded-xl text-xs transition cursor-pointer">
+                        Close Admin
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4 Beginner-Friendly Console Navigation Tabs -->
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button id="adminTabBtnToggles" onclick="switchAdminConsoleTab('toggles')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold bg-tealmed-600 text-white transition inline-flex items-center gap-2 cursor-pointer shadow-sm">
+                    <i data-lucide="toggle-right" class="w-4 h-4"></i>
+                    <span>1. Website Toggles &amp; Texts (No-Code)</span>
+                </button>
+                <button id="adminTabBtnCms" onclick="switchAdminConsoleTab('cms')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold bg-navy-800 text-slate-300 hover:text-white border border-slate-700 transition inline-flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                    <span>2. Services, Hospitals, Areas &amp; Staff</span>
+                </button>
+                <button id="adminTabBtnVitals" onclick="switchAdminConsoleTab('vitals')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold bg-navy-800 text-slate-300 hover:text-white border border-slate-700 transition inline-flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="activity" class="w-4 h-4"></i>
+                    <span>3. Record Patient Vitals</span>
+                </button>
+                <button id="adminTabBtnRenewal" onclick="switchAdminConsoleTab('renewal')"
+                        class="px-4 py-2.5 rounded-xl text-xs font-bold bg-navy-800 text-slate-300 hover:text-white border border-slate-700 transition inline-flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    <span>4. Care Shield Auto-Renewal</span>
+                </button>
+            </div>
+
+            <!-- ===============================================================
+                 TAB 1: MASTER WEBSITE TOGGLES, BRANDING, TEXTS & BACKUP
+            ================================================================ -->
+            <div id="adminViewToggles" class="space-y-6">
+                <!-- Card A: One-Click ON/OFF Feature Toggles -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-tealmed-700">1-Click Switchboard</span>
+                            <h3 class="font-display font-bold text-base text-navy-900">Website Feature &amp; Section ON/OFF Toggles</h3>
+                            <p class="text-xs text-slate-500">Flip any switch below to instantly show, hide, or enable/disable features across the live website.</p>
+                        </div>
+                        <span id="toggleSaveIndicator" class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-1 rounded-full">
+                            Auto-Saved Live
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Toggle 1: Maintenance Mode -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-rose-700 block">Maintenance Mode</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show "Under Maintenance" screen to visitors</span>
+                            </div>
+                            <input type="checkbox" id="tglMaintenanceMode" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-rose-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 2: Custom Promo Banner -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Top Offer / Promo Strip</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show special discount announcement bar at top</span>
+                            </div>
+                            <input type="checkbox" id="tglPromoBanner" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 3: PWA Install Banner -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">PWA App Install Banner</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show "Install App" bar at top of website</span>
+                            </div>
+                            <input type="checkbox" id="tglPwaBanner" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 4: Floating WhatsApp Button -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Floating WhatsApp Button</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show green WhatsApp button at bottom-right</span>
+                            </div>
+                            <input type="checkbox" id="tglFloatingWhatsapp" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 5: Instant 60-Min Dispatch -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Instant 60-Min Dispatch</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Allow urgent 60-minute booking option</span>
+                            </div>
+                            <input type="checkbox" id="tglInstantDispatch" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 6: Online Razorpay Payment -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Online Payment (Razorpay)</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Turn OFF if you only want WhatsApp bookings</span>
+                            </div>
+                            <input type="checkbox" id="tglOnlinePayment" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 7: Partner Hospitals Section -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Partner Hospitals Section</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show diagnostic centers section on homepage</span>
+                            </div>
+                            <input type="checkbox" id="tglShowHospitals" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+
+                        <!-- Toggle 8: Care Shield Section -->
+                        <label class="flex items-start justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 cursor-pointer">
+                            <div>
+                                <span class="font-bold text-xs text-navy-900 block">Care Shield Plan Section</span>
+                                <span class="text-[11px] text-slate-500 block mt-0.5">Show annual membership section on homepage</span>
+                            </div>
+                            <input type="checkbox" id="tglShowCareShield" onchange="updateMasterTogglesFromUi()" class="w-5 h-5 accent-tealmed-600 rounded cursor-pointer mt-0.5 shrink-0">
+                        </label>
+                    </div>
+
+                    <!-- Custom Promo Strip Settings -->
+                    <div class="mt-5 pt-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div class="md:col-span-3">
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Offer / Promo Banner Text (When "Top Offer Strip" is ON)</label>
+                            <input type="text" id="cmsPromoBannerText" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Banner Color</label>
+                            <select id="cmsPromoBannerColor" onchange="updateMasterTogglesFromUi()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold bg-white">
+                                <option value="amber">Amber Gold</option>
+                                <option value="teal">Medical Teal</option>
+                                <option value="emerald">Emerald Green</option>
+                                <option value="navy">Dark Navy</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card B: Brand, Contact & Hero Text Editor -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="pb-4 mb-5 border-b border-slate-200">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-tealmed-700">No-Code Text &amp; Contact Editor</span>
+                        <h3 class="font-display font-bold text-base text-navy-900">Edit Brand Name, Phone/WhatsApp, Address &amp; Homepage Headlines</h3>
+                        <p class="text-xs text-slate-500">Changing your WhatsApp number here automatically updates all booking buttons across the entire website.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Brand / Clinic Name</label>
+                            <input type="text" id="cmsBrandName" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-semibold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Brand Tagline</label>
+                            <input type="text" id="cmsBrandTagline" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp &amp; Call Number (10 Digits)</label>
+                            <input type="text" id="cmsContactPhone" placeholder="9876543210" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-bold text-tealmed-800">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Support Email</label>
+                            <input type="email" id="cmsContactEmail" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Office / Central Desk Address</label>
+                            <input type="text" id="cmsOfficeAddress" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Top Hero Badge Text</label>
+                            <input type="text" id="cmsHeroBadge" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 mb-5">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Homepage Main Headline (H1)</label>
+                            <input type="text" id="cmsHeroTitle" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Homepage Sub-Headline Description</label>
+                            <textarea id="cmsHeroSubtitle" rows="2" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-medium"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <span id="cmsBrandSaveFeedback" class="text-xs font-semibold text-tealmed-700"></span>
+                        <button onclick="saveBrandAndTextsFromCms()" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-6 py-2.5 rounded-xl text-xs transition inline-flex items-center gap-2 cursor-pointer">
+                            <i data-lucide="save" class="w-4 h-4 text-tealmed-400"></i>
+                            <span>Save &amp; Apply All Texts Live</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Card C: Admin PIN Security & JSON Backup/Restore -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-display font-bold text-sm text-navy-900 mb-1">Change Admin Console PIN</h4>
+                        <p class="text-xs text-slate-500 mb-3">Protect your admin panel with your own custom 4 to 8 digit PIN.</p>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="cmsNewAdminPin" placeholder="New PIN (e.g. 5678)" class="rounded-xl border border-slate-300 px-3.5 py-2 text-xs font-bold w-44">
+                            <button onclick="updateAdminPinFromCms()" class="bg-tealmed-600 hover:bg-tealmed-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition cursor-pointer">
+                                Update PIN
+                            </button>
+                        </div>
+                        <p id="cmsPinFeedback" class="text-xs font-semibold text-tealmed-700 mt-2"></p>
+                    </div>
+
+                    <div class="lg:border-l lg:border-slate-200 lg:pl-6">
+                        <h4 class="font-display font-bold text-sm text-navy-900 mb-1">Backup &amp; Restore Website Settings</h4>
+                        <p class="text-xs text-slate-500 mb-3">Download your settings file or restore from a previous backup on any device.</p>
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <button onclick="exportCmsJsonBackup()" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-3.5 py-2 rounded-xl text-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="download" class="w-3.5 h-3.5 text-tealmed-400"></i>
+                                <span>Export Backup (.json)</span>
+                            </button>
+                            <label class="bg-slate-100 hover:bg-slate-200 text-navy-900 border border-slate-300 font-semibold px-3.5 py-2 rounded-xl text-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="upload" class="w-3.5 h-3.5 text-tealmed-700"></i>
+                                <span>Restore Backup</span>
+                                <input type="file" accept=".json" onchange="importCmsJsonBackup(event)" class="hidden">
+                            </label>
+                            <button onclick="resetCmsToDefaults()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold px-3 py-2 rounded-xl text-xs transition cursor-pointer">
+                                Reset Factory Defaults
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===============================================================
+                 TAB 2: SERVICES, HOSPITALS, LUCKNOW AREAS & FIELD NURSES CMS
+            ================================================================ -->
+            <div id="adminViewCms" class="hidden space-y-6">
+                <!-- 1. Manage Field Nurses / Staff -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+                        <div>
+                            <h3 class="font-display font-bold text-base text-navy-900">Manage Field Nurses &amp; Dispatch Staff</h3>
+                            <p class="text-xs text-slate-500">Add your real Lucknow nursing staff and select who gets assigned to new bookings.</p>
+                        </div>
+                        <span id="cmsStaffCountBadge" class="bg-tealmed-50 text-tealmed-800 border border-tealmed-200 text-xs font-bold px-3 py-1 rounded-full">
+                            2 Staff Members
+                        </span>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Nurse / Staff Name *</label>
+                                <input type="text" id="cmsNurseName" placeholder="e.g. Nurse Anjali Sharma" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Staff ID *</label>
+                                <input type="text" id="cmsNurseId" placeholder="e.g. LKO-NSF-405" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Mobile Number *</label>
+                                <input type="text" id="cmsNursePhone" placeholder="+91 98765 11223" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Designation / Role</label>
+                                <input type="text" id="cmsNurseRole" value="Certified Senior Home Nurse" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="addNurseStaffFromCms()" class="w-full bg-navy-900 hover:bg-navy-800 text-white font-semibold px-4 py-2 rounded-lg text-xs transition inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="user-plus" class="w-3.5 h-3.5 text-tealmed-400"></i>
+                                    <span>Add Staff</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cmsNurseList" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+                </div>
+
+                <!-- 2. Manage Lucknow Service Areas -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+                        <div>
+                            <h3 class="font-display font-bold text-base text-navy-900">Manage Lucknow Service Areas (Top Dropdown)</h3>
+                            <p class="text-xs text-slate-500">Add or remove Lucknow localities shown in the top location bar.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Locality / Area Name *</label>
+                                <input type="text" id="cmsAreaName" placeholder="e.g. Jankipuram, Lucknow" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Latitude (Optional)</label>
+                                <input type="text" id="cmsAreaLat" value="26.9124" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Longitude (Optional)</label>
+                                <input type="text" id="cmsAreaLng" value="80.9422" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-mono">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="addServiceAreaFromCms()" class="w-full bg-tealmed-600 hover:bg-tealmed-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                    <span>Add Area</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cmsAreasTagList" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <!-- 3. Manage Partner Hospitals -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+                        <div>
+                            <h3 class="font-display font-bold text-base text-navy-900">Manage Partner Hospitals &amp; Diagnostic Centers (Lucknow)</h3>
+                            <p class="text-xs text-slate-500">Add, edit, or remove partner hospitals/scan centers where patients get Center X-Ray, MRI, CT, Ultrasound &amp; discounts.</p>
+                        </div>
+                        <span id="cmsHospitalCountBadge" class="bg-tealmed-50 text-tealmed-800 border border-tealmed-200 text-xs font-bold px-3 py-1 rounded-full">
+                            3 Active Centers
+                        </span>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <span id="cmsHospFormTitle" class="text-xs font-bold uppercase tracking-wider text-navy-900">
+                                + Add New Partner Hospital / Diagnostic Center
+                            </span>
+                            <button id="cmsHospCancelEditBtn" onclick="cancelEditHospital()" class="hidden text-xs font-semibold text-rose-600 hover:underline cursor-pointer">
+                                Cancel Edit
+                            </button>
+                        </div>
+                        <input type="hidden" id="cmsHospEditId" value="">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Hospital / Center Name *</label>
+                                <input type="text" id="cmsHospName" placeholder="e.g. Metro MRI & Diagnostics" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Lucknow Area / Address *</label>
+                                <input type="text" id="cmsHospAddress" placeholder="e.g. Vibhuti Khand, Gomti Nagar" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Specialties (Comma separated) *</label>
+                                <input type="text" id="cmsHospSpecialties" placeholder="e.g. 3T MRI, CT Scan, Ultrasound" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Member Discount %</label>
+                                <input type="number" id="cmsHospDiscount" value="40" min="0" max="80" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Contact Phone</label>
+                                <input type="text" id="cmsHospContact" placeholder="+91 98765 43210" value="+91 98765 43210" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                            <span id="cmsHospFeedback" class="text-xs font-semibold text-tealmed-700"></span>
+                            <button onclick="saveHospitalFromCms()" id="cmsHospSaveBtn" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-4 py-2 rounded-lg text-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-tealmed-400"></i>
+                                <span>Save Hospital / Center</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="cmsHospitalList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- 4. Manage Services & Pricing -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-200">
+                        <div>
+                            <h3 class="font-display font-bold text-base text-navy-900">Manage Home Healthcare Services &amp; Pricing</h3>
+                            <p class="text-xs text-slate-500">Add new services or modify prices, member benefits, and descriptions live on the homepage.</p>
+                        </div>
+                        <span id="cmsServiceCountBadge" class="bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold px-3 py-1 rounded-full">
+                            8 Active Services
+                        </span>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <span id="cmsSvcFormTitle" class="text-xs font-bold uppercase tracking-wider text-navy-900">
+                                + Add / Update Healthcare Service
+                            </span>
+                            <button id="cmsSvcCancelEditBtn" onclick="cancelEditService()" class="hidden text-xs font-semibold text-rose-600 hover:underline cursor-pointer">
+                                Cancel Edit
+                            </button>
+                        </div>
+                        <input type="hidden" id="cmsSvcEditId" value="">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Service Title *</label>
+                                <input type="text" id="cmsSvcTitle" placeholder="e.g. ECG at Home" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">One-Time Price (₹) *</label>
+                                <input type="number" id="cmsSvcPrice" placeholder="499" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Member Benefit Label *</label>
+                                <input type="text" id="cmsSvcMemberBenefit" placeholder="e.g. Free for Members / 40% Off" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Icon Type</label>
+                                <select id="cmsSvcIcon" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                                    <option value="stethoscope">Nursing / Stethoscope</option>
+                                    <option value="video">Online Doctor / Video</option>
+                                    <option value="activity">Physiotherapy / Activity</option>
+                                    <option value="scan">X-Ray / Scan</option>
+                                    <option value="heart-pulse">Cardio / ECG / Vitals</option>
+                                    <option value="flame">Fat Loss / Nutrition</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-slate-600 mb-1">Short Description *</label>
+                                <input type="text" id="cmsSvcDesc" placeholder="Brief clinical description" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium">
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                            <span id="cmsSvcFeedback" class="text-xs font-semibold text-tealmed-700"></span>
+                            <button onclick="saveServiceFromCms()" id="cmsSvcSaveBtn" class="bg-navy-900 hover:bg-navy-800 text-white font-semibold px-4 py-2 rounded-lg text-xs transition inline-flex items-center gap-1.5 cursor-pointer">
+                                <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-tealmed-400"></i>
+                                <span>Save Service</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="cmsServiceList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+                </div>
+
+                <!-- 5. Edit Care Shield Annual Membership Plan -->
+                <div class="bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                    <h3 class="font-display font-bold text-base text-navy-900 mb-1">Edit Annual Care Shield Membership Plan</h3>
+                    <p class="text-xs text-slate-500 mb-4">Modify the annual membership price, tagline, or checkup highlights dynamically.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Plan Title</label>
+                            <input type="text" id="cmsPlanTitle" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Annual Price (₹)</label>
+                            <input type="number" id="cmsPlanPrice" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Strike-Through Market Value (₹)</label>
+                            <input type="number" id="cmsPlanOriginalPrice" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Plan Subtitle / Summary</label>
+                        <input type="text" id="cmsPlanSubtitle" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span id="cmsPlanFeedback" class="text-xs font-semibold text-tealmed-700"></span>
+                        <button onclick="saveCareShieldFromCms()" class="bg-tealmed-600 hover:bg-tealmed-700 text-white font-semibold px-5 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                            Update Care Shield Plan Live
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===============================================================
+                 TAB 3: RECORD PATIENT VITALS
+            ================================================================ -->
+            <div id="adminViewVitals" class="hidden bg-white text-slate-800 rounded-2xl p-6 border border-slate-200 shadow-lg">
+                <h3 class="font-display font-bold text-base text-navy-900">Log Home Checkup Vitals &amp; 4-Point Physical Screening</h3>
+                <p class="text-xs text-slate-500 mt-0.5 mb-5">Submitted vitals immediately sync to the patient's Read-Only Portal and deduct 1 visit from their annual quota.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Select Patient Account *</label>
+                        <select id="staffSelectPatient" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-tealmed-600"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Visit Date</label>
+                        <input type="text" id="staffCheckupDate" class="w-full
